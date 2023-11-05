@@ -195,6 +195,8 @@ func CommitGenesisState(db ethdb.Database, triedb *trie.Database, blockhash comm
 			genesis = DefaultGoerliGenesisBlock()
 		case params.SepoliaGenesisHash:
 			genesis = DefaultSepoliaGenesisBlock()
+		case params.CyberGenesisHash:
+			genesis = DefaultCyberGenesisBlock()
 		}
 		if genesis != nil {
 			alloc = genesis.Alloc
@@ -427,6 +429,8 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 		return params.RinkebyChainConfig
 	case ghash == params.GoerliGenesisHash:
 		return params.GoerliChainConfig
+	case ghash == params.CyberGenesisHash:
+		return params.CyberChainConfig
 	default:
 		return params.AllEthashProtocolChanges
 	}
@@ -554,6 +558,19 @@ func DefaultGoerliGenesisBlock() *Genesis {
 		Alloc:      decodePrealloc(goerliAllocData),
 	}
 }
+
+// DefaultGoerliGenesisBlock returns the Görli network genesis block.
+func DefaultCyberGenesisBlock() *Genesis {
+	return &Genesis{
+		Config:     params.CyberChainConfig,
+		Timestamp:  1548854791,
+		ExtraData:  hexutil.MustDecode("0x22466c6578692069732061207468696e6722202d204166726900000000000000e0a2bd4258d2768837baa26a28fe71dc079f84c70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+		GasLimit:   10485760,
+		Difficulty: big.NewInt(1),
+		Alloc:      decodePrealloc(cyberAllocData),
+	}
+}
+
 
 // DefaultSepoliaGenesisBlock returns the Sepolia network genesis block.
 func DefaultSepoliaGenesisBlock() *Genesis {

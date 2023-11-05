@@ -105,6 +105,16 @@ func TestSetupGenesis(t *testing.T) {
 			wantConfig: params.GoerliChainConfig,
 		},
 		{
+			name: "custom block in DB, genesis == cyber",
+			fn: func(db ethdb.Database) (*params.ChainConfig, common.Hash, error) {
+				customg.MustCommit(db)
+				return SetupGenesisBlock(db, trie.NewDatabase(db), DefaultCyberGenesisBlock())
+			},
+			wantErr:    &GenesisMismatchError{Stored: customghash, New: params.CyberGenesisHash},
+			wantHash:   params.CyberGenesisHash,
+			wantConfig: params.CyberChainConfig,
+		},
+		{
 			name: "compatible config in DB",
 			fn: func(db ethdb.Database) (*params.ChainConfig, common.Hash, error) {
 				oldcustomg.MustCommit(db)
@@ -174,6 +184,7 @@ func TestGenesisHashes(t *testing.T) {
 		{DefaultGoerliGenesisBlock(), params.GoerliGenesisHash},
 		{DefaultRinkebyGenesisBlock(), params.RinkebyGenesisHash},
 		{DefaultSepoliaGenesisBlock(), params.SepoliaGenesisHash},
+		{DefaultCyberGenesisBlock(), params.CyberGenesisHash},
 	} {
 		// Test via MustCommit
 		if have := c.genesis.MustCommit(rawdb.NewMemoryDatabase()).Hash(); have != c.want {
