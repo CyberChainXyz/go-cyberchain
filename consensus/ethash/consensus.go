@@ -270,6 +270,10 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
 	}
+	if chain.Config().IsCyber(header.Time) && header.MixDigest != (common.Hash{}) {
+		return fmt.Errorf("mix digest should be zero value after cyber fork, %v", header.MixDigest)
+	}
+
 	// Verify the header's timestamp
 	if !uncle {
 		if header.Time > uint64(unixNow+allowedFutureBlockTimeSeconds) {
@@ -544,41 +548,49 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 	// Recompute the digest and PoW values
 	number := header.Number.Uint64()
 
-	var (
-		digest []byte
-		result []byte
-	)
-	// If fast-but-heavy PoW verification was requested, use an ethash dataset
-	if fulldag {
-		dataset := ethash.dataset(number, true)
-		if dataset.generated() {
-			digest, result = hashimotoFull(dataset.dataset, ethash.SealHash(header).Bytes(), header.Nonce.Uint64())
+	var result []byte
+	if chain.Config().IsCyber(header.Time) {
+		hashSource := make([]byte, 0, common.HashLength * 2 + 8)
+		hashSource = append(hashSource, ethash.SealHash(header).Bytes()...)
+		hashSource = append(hashSource, seedHash(header.Number.Uint64())...)
+		hashSource = append(hashSource, header.Nonce[:]...)
+		arr_result := cngpuHash(hashSource)
+		result = arr_result[:]
+	} else {
+		var digest []byte
 
-			// Datasets are unmapped in a finalizer. Ensure that the dataset stays alive
-			// until after the call to hashimotoFull so it's not unmapped while being used.
-			runtime.KeepAlive(dataset)
-		} else {
-			// Dataset not yet generated, don't hang, use a cache instead
-			fulldag = false
+		// If fast-but-heavy PoW verification was requested, use an ethash dataset
+		if fulldag {
+			dataset := ethash.dataset(number, true)
+			if dataset.generated() {
+				digest, result = hashimotoFull(dataset.dataset, ethash.SealHash(header).Bytes(), header.Nonce.Uint64())
+
+				// Datasets are unmapped in a finalizer. Ensure that the dataset stays alive
+				// until after the call to hashimotoFull so it's not unmapped while being used.
+				runtime.KeepAlive(dataset)
+			} else {
+				// Dataset not yet generated, don't hang, use a cache instead
+				fulldag = false
+			}
 		}
-	}
-	// If slow-but-light PoW verification was requested (or DAG not yet ready), use an ethash cache
-	if !fulldag {
-		cache := ethash.cache(number)
+		// If slow-but-light PoW verification was requested (or DAG not yet ready), use an ethash cache
+		if !fulldag {
+			cache := ethash.cache(number)
 
-		size := datasetSize(number)
-		if ethash.config.PowMode == ModeTest {
-			size = 32 * 1024
+			size := datasetSize(number)
+			if ethash.config.PowMode == ModeTest {
+				size = 32 * 1024
+			}
+			digest, result = hashimotoLight(size, cache.cache, ethash.SealHash(header).Bytes(), header.Nonce.Uint64())
+
+			// Caches are unmapped in a finalizer. Ensure that the cache stays alive
+			// until after the call to hashimotoLight so it's not unmapped while being used.
+			runtime.KeepAlive(cache)
 		}
-		digest, result = hashimotoLight(size, cache.cache, ethash.SealHash(header).Bytes(), header.Nonce.Uint64())
-
-		// Caches are unmapped in a finalizer. Ensure that the cache stays alive
-		// until after the call to hashimotoLight so it's not unmapped while being used.
-		runtime.KeepAlive(cache)
-	}
-	// Verify the calculated values against the ones provided in the header
-	if !bytes.Equal(header.MixDigest[:], digest) {
-		return errInvalidMixDigest
+		// Verify the calculated values against the ones provided in the header
+		if !bytes.Equal(header.MixDigest[:], digest) {
+			return errInvalidMixDigest
+		}
 	}
 	target := new(big.Int).Div(two256, header.Difficulty)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {

@@ -91,12 +91,17 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 	var (
 		pend   sync.WaitGroup
 		locals = make(chan *types.Block)
+		isCyber = chain.Config().IsCyber(block.Header().Number.Uint64())
 	)
 	for i := 0; i < threads; i++ {
 		pend.Add(1)
 		go func(id int, nonce uint64) {
 			defer pend.Done()
-			ethash.mine(block, id, nonce, abort, locals)
+			if isCyber {
+				ethash.mine_cn_gpu(block, id, nonce, abort, locals)
+			} else {
+				ethash.mine(block, id, nonce, abort, locals)
+			}
 		}(i, uint64(ethash.rand.Int63()))
 	}
 	// Wait until sealing is terminated or a nonce is found
@@ -125,6 +130,67 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 		pend.Wait()
 	}()
 	return nil
+}
+
+// cn-gpu mine
+func (ethash *Ethash) mine_cn_gpu(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
+	// Extract some data from the header
+	var (
+		header  = block.Header()
+		hash    = ethash.SealHash(header).Bytes()
+		target  = new(big.Int).Div(two256, header.Difficulty)
+		number  = header.Number.Uint64()
+	)
+	// Start generating random nonces until we abort or find a good one
+	var (
+		attempts  = int64(0)
+		nonce     = seed
+		powBuffer = new(big.Int)
+		hashSource = make([]byte, 0, common.HashLength * 2 + 8)
+	)
+	hashSource = append(hashSource, hash...)
+	hashSource = append(hashSource, seedHash(number)...)
+
+	logger := ethash.config.Log.New("miner", id)
+	logger.Trace("Started ethash/cn-gpu search for new nonces", "seed", seed)
+search:
+	for {
+		select {
+		case <-abort:
+			// Mining terminated, update stats and abort
+			logger.Trace("Ethash/cn-gpu nonce search aborted", "attempts", nonce-seed)
+			ethash.hashrate.Mark(attempts)
+			break search
+
+		default:
+			// We don't have to update hash rate on every nonce, so update after after 2^X nonces
+			attempts++
+			if (attempts % (1 << 15)) == 0 {
+				ethash.hashrate.Mark(attempts)
+				attempts = 0
+			}
+			nonceBytes := types.EncodeNonce(nonce)
+			// Compute the PoW value of this nonce
+			tryHashSource := append(hashSource, nonceBytes[:]...)
+			result := cngpuHash(tryHashSource)
+
+			if powBuffer.SetBytes(result[:]).Cmp(target) <= 0 {
+				// Correct nonce found, create a new header with it
+				header = types.CopyHeader(header)
+				header.Nonce = nonceBytes
+
+				// Seal and return a block (if still needed)
+				select {
+				case found <- block.WithSeal(header):
+					logger.Trace("Ethash/cn-gpu nonce found and reported", "attempts", nonce-seed, "nonce", nonce)
+				case <-abort:
+					logger.Trace("Ethash/cn-gpu nonce found but discarded", "attempts", nonce-seed, "nonce", nonce)
+				}
+				break search
+			}
+			nonce++
+		}
+	}
 }
 
 // mine is the actual proof-of-work miner that searches for a nonce starting from
