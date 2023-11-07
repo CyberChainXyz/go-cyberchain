@@ -68,7 +68,7 @@ func (api *API) GetWork() ([4]string, error) {
 // SubmitWork can be used by external miner to submit their POW solution.
 // It returns an indication if the work was accepted.
 // Note either an invalid solution, a stale work a non-existent work will return false.
-func (api *API) SubmitWork(nonce types.BlockNonce, hash, digest common.Hash) bool {
+func (api *API) SubmitWorkOld(nonce types.BlockNonce, hash, digest common.Hash) bool {
 	if api.ethash.remote == nil {
 		return false
 	}
@@ -78,6 +78,29 @@ func (api *API) SubmitWork(nonce types.BlockNonce, hash, digest common.Hash) boo
 	case api.ethash.remote.submitWorkCh <- &mineResult{
 		nonce:     nonce,
 		mixDigest: digest,
+		hash:      hash,
+		errc:      errc,
+	}:
+	case <-api.ethash.remote.exitCh:
+		return false
+	}
+	err := <-errc
+	return err == nil
+}
+
+// SubmitWork can be used by external miner to submit their POW solution.
+// It returns an indication if the work was accepted.
+// Note either an invalid solution, a stale work a non-existent work will return false.
+func (api *API) SubmitWork(jobId string, nonce types.BlockNonce, hash common.Hash) bool {
+	if api.ethash.remote == nil {
+		return false
+	}
+
+	var errc = make(chan error, 1)
+	select {
+	case api.ethash.remote.submitWorkCh <- &mineResult{
+		nonce:     nonce,
+		mixDigest: common.Hash{},
 		hash:      hash,
 		errc:      errc,
 	}:
@@ -132,6 +155,22 @@ func makeJobId(length int) string {
 	return string(randomString)
 }
 
+// make extranonce for miner.
+func makeExtranonce(length int) string {
+	// Define the characters from which you want to generate the string
+	const charset = "abcdef0123456789"
+
+	// Create a buffer to store the random string
+	randomString := make([]byte, length)
+
+	// Generate random characters and append them to the buffer
+	for i := 0; i < length; i++ {
+		randomString[i] = charset[rand.Intn(len(charset))]
+	}
+
+	return string(randomString)
+}
+
 type minerInfo struct {
 	User  string `json:"user"`
 	Pass  string `json:"pass"`
@@ -155,10 +194,11 @@ func (api *API) NewWork(ctx context.Context, args minerInfo) (*rpc.Subscription,
 
 	go func() {
 		if api.ethash.remote.currentBlock != nil {
-			// add extranonce
+			// add jobId and extranonce
 			var minerWork = make([]string, 6)
 			minerWork[0] = makeJobId(5)
 			copy(minerWork[1:], api.ethash.remote.currentWork[:])
+			minerWork[5] = makeExtranonce(4)
 			notifier.Notify(rpcSub.ID, minerWork)
 		}
 
@@ -173,10 +213,11 @@ func (api *API) NewWork(ctx context.Context, args minerInfo) (*rpc.Subscription,
 
 			select {
 			case work := <-workCh:
-				// add extranonce
+				// add jobId and extranonce
 				var minerWork = make([]string, 6)
 				minerWork[0] = makeJobId(5)
 				copy(minerWork[1:], work[:])
+				minerWork[5] = makeExtranonce(4)
 				notifier.Notify(rpcSub.ID, minerWork)
 			case <-rpcSub.Err():
 				return
