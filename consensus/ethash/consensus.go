@@ -550,7 +550,7 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 
 	var result []byte
 	if chain.Config().IsCyber(header.Time) {
-		hashSource := make([]byte, 0, common.HashLength * 2 + 8)
+		hashSource := make([]byte, 0, common.HashLength*2+8)
 		hashSource = append(hashSource, ethash.SealHash(header).Bytes()...)
 		hashSource = append(hashSource, seedHash(header.Number.Uint64())...)
 		hashSource = append(hashSource, header.Nonce[:]...)

@@ -89,8 +89,8 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 		ethash.remote.workCh <- &sealTask{block: block, results: results}
 	}
 	var (
-		pend   sync.WaitGroup
-		locals = make(chan *types.Block)
+		pend    sync.WaitGroup
+		locals  = make(chan *types.Block)
 		isCyber = chain.Config().IsCyber(block.Header().Number.Uint64())
 	)
 	for i := 0; i < threads; i++ {
@@ -136,17 +136,17 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 func (ethash *Ethash) mine_cn_gpu(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
 	// Extract some data from the header
 	var (
-		header  = block.Header()
-		hash    = ethash.SealHash(header).Bytes()
-		target  = new(big.Int).Div(two256, header.Difficulty)
-		number  = header.Number.Uint64()
+		header = block.Header()
+		hash   = ethash.SealHash(header).Bytes()
+		target = new(big.Int).Div(two256, header.Difficulty)
+		number = header.Number.Uint64()
 	)
 	// Start generating random nonces until we abort or find a good one
 	var (
-		attempts  = int64(0)
-		nonce     = seed
-		powBuffer = new(big.Int)
-		hashSource = make([]byte, 0, common.HashLength * 2 + 8)
+		attempts   = int64(0)
+		nonce      = seed
+		powBuffer  = new(big.Int)
+		hashSource = make([]byte, 0, common.HashLength*2+8)
 	)
 	hashSource = append(hashSource, hash...)
 	hashSource = append(hashSource, seedHash(number)...)
@@ -276,6 +276,9 @@ type remoteSealer struct {
 	submitRateCh chan *hashrate   // Channel used for remote sealer to submit their mining hashrate
 	requestExit  chan struct{}
 	exitCh       chan struct{}
+
+	notifyWorkCh    chan chan<- [4]string
+	notifyWorkChans []chan<- [4]string
 }
 
 // sealTask wraps a seal block with relative result channel for remote sealer thread.
@@ -311,20 +314,22 @@ type sealWork struct {
 func startRemoteSealer(ethash *Ethash, urls []string, noverify bool) *remoteSealer {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &remoteSealer{
-		ethash:       ethash,
-		noverify:     noverify,
-		notifyURLs:   urls,
-		notifyCtx:    ctx,
-		cancelNotify: cancel,
-		works:        make(map[common.Hash]*types.Block),
-		rates:        make(map[common.Hash]hashrate),
-		workCh:       make(chan *sealTask),
-		fetchWorkCh:  make(chan *sealWork),
-		submitWorkCh: make(chan *mineResult),
-		fetchRateCh:  make(chan chan uint64),
-		submitRateCh: make(chan *hashrate),
-		requestExit:  make(chan struct{}),
-		exitCh:       make(chan struct{}),
+		ethash:          ethash,
+		noverify:        noverify,
+		notifyURLs:      urls,
+		notifyCtx:       ctx,
+		cancelNotify:    cancel,
+		works:           make(map[common.Hash]*types.Block),
+		rates:           make(map[common.Hash]hashrate),
+		workCh:          make(chan *sealTask),
+		fetchWorkCh:     make(chan *sealWork),
+		submitWorkCh:    make(chan *mineResult),
+		fetchRateCh:     make(chan chan uint64),
+		submitRateCh:    make(chan *hashrate),
+		requestExit:     make(chan struct{}),
+		exitCh:          make(chan struct{}),
+		notifyWorkCh:    make(chan chan<- [4]string),
+		notifyWorkChans: nil,
 	}
 	go s.loop()
 	return s
@@ -348,7 +353,11 @@ func (s *remoteSealer) loop() {
 			// Note same work can be past twice, happens when changing CPU threads.
 			s.results = work.results
 			s.makeWork(work.block)
+			s.notifyWorkForChans()
 			s.notifyWork()
+
+		case notifyChan := <-s.notifyWorkCh:
+			s.notifyWorkChans = append(s.notifyWorkChans, notifyChan)
 
 		case work := <-s.fetchWorkCh:
 			// Return current mining work to remote miner.
@@ -440,6 +449,18 @@ func (s *remoteSealer) notifyWork() {
 	for _, url := range s.notifyURLs {
 		go s.sendNotification(s.notifyCtx, url, blob, work)
 	}
+}
+
+// notifyWorkForChans notifies all the specified mining chans of the availability of
+// new work to be processed.
+func (s *remoteSealer) notifyWorkForChans() {
+	work := s.currentWork
+
+	for _, ch := range s.notifyWorkChans {
+		ch <- work
+	}
+
+	s.notifyWorkChans = nil
 }
 
 func (s *remoteSealer) sendNotification(ctx context.Context, url string, json []byte, work [4]string) {

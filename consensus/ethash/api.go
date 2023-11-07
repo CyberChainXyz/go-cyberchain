@@ -17,11 +17,15 @@
 package ethash
 
 import (
+	"context"
 	"errors"
+	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var errEthashStopped = errors.New("ethash stopped")
@@ -110,4 +114,77 @@ func (api *API) SubmitHashrate(rate hexutil.Uint64, id common.Hash) bool {
 // GetHashrate returns the current hashrate for local CPU miner and remote miner.
 func (api *API) GetHashrate() uint64 {
 	return uint64(api.ethash.Hashrate())
+}
+
+// newWork notification include jobId for compatibility with mining pool.
+func makeJobId(length int) string {
+	// Define the characters from which you want to generate the string
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	// Create a buffer to store the random string
+	randomString := make([]byte, length)
+
+	// Generate random characters and append them to the buffer
+	for i := 0; i < length; i++ {
+		randomString[i] = charset[rand.Intn(len(charset))]
+	}
+
+	return string(randomString)
+}
+
+type minerInfo struct {
+	User  string `json:"user"`
+	Pass  string `json:"pass"`
+	Agent string `json:"agent"`
+}
+
+// NewHeads send a notification each time a new (header) block is appended to the chain.
+// The "minerInfo" parameter is provided solely for compatibility with standalone mining pool services,
+// but it is not utilized here.
+func (api *API) NewWork(ctx context.Context, args minerInfo) (*rpc.Subscription, error) {
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
+	}
+
+	if api.ethash.remote == nil {
+		return &rpc.Subscription{}, errors.New("remote mining not supported")
+	}
+
+	rpcSub := notifier.CreateSubscription()
+
+	go func() {
+		if api.ethash.remote.currentBlock != nil {
+			// add extranonce
+			var minerWork = make([]string, 6)
+			minerWork[0] = makeJobId(5)
+			copy(minerWork[1:], api.ethash.remote.currentWork[:])
+			notifier.Notify(rpcSub.ID, minerWork)
+		}
+
+		workCh := make(chan [4]string, 1)
+
+		for {
+			select {
+			case api.ethash.remote.notifyWorkCh <- workCh:
+			case <-api.ethash.remote.exitCh:
+				return
+			}
+
+			select {
+			case work := <-workCh:
+				// add extranonce
+				var minerWork = make([]string, 6)
+				minerWork[0] = makeJobId(5)
+				copy(minerWork[1:], work[:])
+				notifier.Notify(rpcSub.ID, minerWork)
+			case <-rpcSub.Err():
+				return
+			case <-notifier.Closed():
+				return
+			}
+		}
+	}()
+
+	return rpcSub, nil
 }

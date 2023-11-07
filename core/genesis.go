@@ -571,7 +571,6 @@ func DefaultCyberGenesisBlock() *Genesis {
 	}
 }
 
-
 // DefaultSepoliaGenesisBlock returns the Sepolia network genesis block.
 func DefaultSepoliaGenesisBlock() *Genesis {
 	return &Genesis{
