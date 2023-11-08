@@ -171,16 +171,10 @@ func makeExtranonce(length int) string {
 	return string(randomString)
 }
 
-type minerInfo struct {
-	User  string `json:"user"`
-	Pass  string `json:"pass"`
-	Agent string `json:"agent"`
-}
-
 // NewHeads send a notification each time a new (header) block is appended to the chain.
-// The "minerInfo" parameter is provided solely for compatibility with standalone mining pool services,
+// The "user,pass,agent" parameter is provided solely for compatibility with standalone mining pool services,
 // but it is not utilized here.
-func (api *API) NewWork(ctx context.Context, args minerInfo) (*rpc.Subscription, error) {
+func (api *API) NewWork(ctx context.Context, user, pass, agent string) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
