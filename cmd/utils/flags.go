@@ -1041,9 +1041,9 @@ func MakeDataDir(ctx *cli.Context) string {
 		if ctx.Bool(SepoliaFlag.Name) {
 			return filepath.Join(path, "sepolia")
 		}
-		if ctx.Bool(CyberFlag.Name) {
-			return filepath.Join(path, "cyber")
-		}
+		//if ctx.Bool(CyberFlag.Name) {
+		//	return filepath.Join(path, "cyber")
+		//}
 		return path
 	}
 	Fatalf("Cannot determine default data directory, please set manually (--datadir)")
@@ -1549,8 +1549,8 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "goerli")
 	case ctx.Bool(SepoliaFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "sepolia")
-	case ctx.Bool(CyberFlag.Name) && cfg.DataDir == node.DefaultDataDir():
-		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "cyber")
+	// case ctx.Bool(CyberFlag.Name) && cfg.DataDir == node.DefaultDataDir():
+	//	cfg.DataDir = filepath.Join(node.DefaultDataDir(), "cyber")
 	}
 }
 
