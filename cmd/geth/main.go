@@ -48,7 +48,7 @@ import (
 )
 
 const (
-	clientIdentifier = "geth" // Client identifier to advertise over the network
+	clientIdentifier = "ccx" // Client identifier to advertise over the network
 )
 
 var (
@@ -200,12 +200,12 @@ var (
 	}
 )
 
-var app = flags.NewApp("the go-ethereum command line interface")
+var app = flags.NewApp("the ccx command line interface")
 
 func init() {
-	// Initialize the CLI app and start Geth
+	// Initialize the CLI app and start ccx
 	app.Action = geth
-	app.Copyright = "Copyright 2013-2023 The go-ethereum Authors"
+	app.Copyright = "Copyright 2013-2023 The go-ethereum Authors and ccx/CyberChain Authors"
 	app.Commands = []*cli.Command{
 		// See chaincmd.go:
 		initCommand,
@@ -274,24 +274,24 @@ func prepare(ctx *cli.Context) {
 	// If we're running a known preset, log it for convenience.
 	switch {
 	case ctx.IsSet(utils.MainnetFlag.Name):
-		log.Info("Starting Geth on Ethereum mainnet...")
+		log.Info("Starting ccx on Ethereum mainnet...")
 		log.Crit("...... is not supported ......")
 
 	case ctx.IsSet(utils.RinkebyFlag.Name):
-		log.Info("Starting Geth on Rinkeby testnet...")
+		log.Info("Starting ccx on Rinkeby testnet...")
 		log.Crit("...... is not supported ......")
 
 	case ctx.IsSet(utils.GoerliFlag.Name):
-		log.Info("Starting Geth on Görli testnet...")
+		log.Info("Starting ccx on Görli testnet...")
 		log.Crit("...... is not supported ......")
 
 	case ctx.IsSet(utils.SepoliaFlag.Name):
-		log.Info("Starting Geth on Sepolia testnet...")
+		log.Info("Starting ccx on Sepolia testnet...")
 		log.Crit("...... is not supported ......")
 
 	case ctx.IsSet(utils.DeveloperFlag.Name):
-		log.Info("Starting Geth in ephemeral dev mode...")
-		log.Warn(`You are running Geth in --dev mode. Please note the following:
+		log.Info("Starting ccx in ephemeral dev mode...")
+		log.Warn(`You are running ccx in --dev mode. Please note the following:
 
   1. This mode is only intended for fast, iterative development without assumptions on
      security or persistence.
@@ -308,7 +308,7 @@ func prepare(ctx *cli.Context) {
 `)
 
 	case !ctx.IsSet(utils.NetworkIdFlag.Name):
-		log.Info("Starting Geth on CyberChain mainnet...")
+		log.Info("Starting ccx on CyberChain mainnet...")
 	}
 	// If we're a full node on mainnet without --cache specified, bump default cache allowance
 	if ctx.String(utils.SyncModeFlag.Name) != "light" && !ctx.IsSet(utils.CacheFlag.Name) && !ctx.IsSet(utils.NetworkIdFlag.Name) {

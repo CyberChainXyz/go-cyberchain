@@ -153,6 +153,9 @@ var (
 var GOBIN, _ = filepath.Abs(filepath.Join("build", "bin"))
 
 func executablePath(name string) string {
+	if name == "geth" {
+		name = "ccx"
+	}
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
