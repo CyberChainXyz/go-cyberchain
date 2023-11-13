@@ -608,6 +608,22 @@ func (ethash *Ethash) Prepare(chain consensus.ChainHeaderReader, header *types.H
 		return consensus.ErrUnknownAncestor
 	}
 	header.Difficulty = ethash.CalcDifficulty(chain, header.Time, parent)
+
+	// Check genesis block pow
+	/*
+	generisHead := chain.GetHeaderByNumber(0)
+	fmt.Printf("============== %#v\n", generisHead)
+	for {
+		err := ethash.verifySeal(chain, generisHead, false)
+		if err != nil {
+			generisHead.Time += 1
+		} else {
+			fmt.Println("GOOD TIME:", generisHead.Time)
+			break
+		}
+	}
+	*/
+
 	return nil
 }
 
