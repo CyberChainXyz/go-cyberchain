@@ -186,3 +186,39 @@ func BenchmarkDifficultyCalculator(b *testing.B) {
 		}
 	})
 }
+
+func TestBlockReward(t *testing.T) {
+	tests := []struct {
+		number *big.Int
+		reward *big.Int
+	}{
+		{big.NewInt(1), CyberBlockReward},
+		{big.NewInt(8640*365*4 - 100), CyberBlockReward},
+		{big.NewInt(8640*365*4 - 1), CyberBlockReward},
+
+		{big.NewInt(8640 * 365 * 4), new(big.Int).Mul(big.NewInt(832/2), big.NewInt(1e+18))},
+		{big.NewInt(8640*365*4 + 100), new(big.Int).Mul(big.NewInt(832/2), big.NewInt(1e+18))},
+		{big.NewInt(8640*365*4*2 - 1), new(big.Int).Mul(big.NewInt(832/2), big.NewInt(1e+18))},
+
+		{big.NewInt(8640 * 365 * 4 * 2), new(big.Int).Mul(big.NewInt(832/2/2), big.NewInt(1e+18))},
+		{big.NewInt(8640*365*4*3 - 1), new(big.Int).Mul(big.NewInt(832/2/2), big.NewInt(1e+18))},
+
+		{big.NewInt(8640 * 365 * 4 * 25),
+			new(big.Int).Div(
+				new(big.Int).Mul(big.NewInt(832), big.NewInt(1e+18)),
+				big.NewInt(33554432), // 2**25
+			),
+		},
+		{big.NewInt(8640 * 365 * 4 * 69), big.NewInt(1)},
+		{big.NewInt(8640*365*4*70 - 1), big.NewInt(1)},
+		{big.NewInt(8640 * 365 * 4 * 70), big.NewInt(0)},
+		{big.NewInt(8640 * 365 * 4 * 71), big.NewInt(0)},
+	}
+
+	for _, v := range tests {
+		reward := calcBlockReward(nil, v.number)
+		if reward.Cmp(v.reward) != 0 {
+			t.Error("calcBlockReward failed. Expected", v.reward, "and calculated", reward)
+		}
+	}
+}

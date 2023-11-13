@@ -39,11 +39,13 @@ import (
 
 // Ethash proof-of-work protocol constants.
 var (
-	FrontierBlockReward           = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
-	ByzantiumBlockReward          = big.NewInt(3e+18) // Block reward in wei for successfully mining a block upward from Byzantium
-	ConstantinopleBlockReward     = big.NewInt(2e+18) // Block reward in wei for successfully mining a block upward from Constantinople
-	maxUncles                     = 2                 // Maximum number of uncles allowed in a single block
-	allowedFutureBlockTimeSeconds = int64(15)         // Max seconds from current time allowed for blocks, before they're considered future blocks
+	FrontierBlockReward           = big.NewInt(5e+18)                                    // Block reward in wei for successfully mining a block
+	ByzantiumBlockReward          = big.NewInt(3e+18)                                    // Block reward in wei for successfully mining a block upward from Byzantium
+	ConstantinopleBlockReward     = big.NewInt(2e+18)                                    // Block reward in wei for successfully mining a block upward from Constantinople
+	CyberBlockReward              = new(big.Int).Mul(big.NewInt(832), big.NewInt(1e+18)) // Block reward in wei from Cyber
+	CyberBlockRewardHalvedBlocks  = big.NewInt(8640 * 365 * 4)                           // Block reward from Cyber halved blocks (about 4 years)
+	maxUncles                     = 2                                                    // Maximum number of uncles allowed in a single block
+	allowedFutureBlockTimeSeconds = int64(15)                                            // Max seconds from current time allowed for blocks, before they're considered future blocks
 
 	// calcDifficultyEip5133 is the difficulty adjustment algorithm as specified by EIP 5133.
 	// It offsets the bomb a total of 11.4M blocks.
@@ -728,18 +730,30 @@ var (
 	big32 = big.NewInt(32)
 )
 
+// Select the correct block reward based on chain progression
+func calcBlockReward(config *params.ChainConfig, number *big.Int) *big.Int {
+	blockReward := FrontierBlockReward
+	if config == nil || config.IsCyber(number) {
+		blockReward = new(big.Int).Rsh(
+			CyberBlockReward,
+			uint(new(big.Int).Div(number, CyberBlockRewardHalvedBlocks).Uint64()),
+		)
+	} else {
+		if config.IsByzantium(number) {
+			blockReward = ByzantiumBlockReward
+		}
+		if config.IsConstantinople(number) {
+			blockReward = ConstantinopleBlockReward
+		}
+	}
+	return blockReward
+}
+
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
 func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
-	// Select the correct block reward based on chain progression
-	blockReward := FrontierBlockReward
-	if config.IsByzantium(header.Number) {
-		blockReward = ByzantiumBlockReward
-	}
-	if config.IsConstantinople(header.Number) {
-		blockReward = ConstantinopleBlockReward
-	}
+	blockReward := calcBlockReward(config, header.Number)
 	// Accumulate the rewards for the miner and any included uncles
 	reward := new(big.Int).Set(blockReward)
 	r := new(big.Int)
