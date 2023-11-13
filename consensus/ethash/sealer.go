@@ -92,7 +92,7 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 	var (
 		pend    sync.WaitGroup
 		locals  = make(chan *types.Block)
-		isCyber = chain == nil || chain.Config().IsCyber(block.Header().Number.Uint64())
+		isCyber = chain == nil || chain.Config().IsCyber(block.Header().Number)
 	)
 	for i := 0; i < threads; i++ {
 		pend.Add(1)

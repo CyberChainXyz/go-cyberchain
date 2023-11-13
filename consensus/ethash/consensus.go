@@ -270,7 +270,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
 	}
-	if chain.Config().IsCyber(header.Time) && header.MixDigest != (common.Hash{}) {
+	if chain.Config().IsCyber(header.Number) && header.MixDigest != (common.Hash{}) {
 		return fmt.Errorf("mix digest should be zero value after cyber fork, %v", header.MixDigest)
 	}
 
@@ -346,6 +346,8 @@ func (ethash *Ethash) CalcDifficulty(chain consensus.ChainHeaderReader, time uin
 func CalcDifficulty(config *params.ChainConfig, time uint64, parent *types.Header) *big.Int {
 	next := new(big.Int).Add(parent.Number, big1)
 	switch {
+	case config.IsCyber(next):
+		return calcDifficultyCyber(time, parent)
 	case config.IsGrayGlacier(next):
 		return calcDifficultyEip5133(time, parent)
 	case config.IsArrowGlacier(next):
@@ -436,6 +438,47 @@ func makeDifficultyCalculator(bombDelay *big.Int) func(time uint64, parent *type
 		}
 		return x
 	}
+}
+
+// calcDifficultyCyber is the difficulty adjustment algorithm. It returns
+// the difficulty that a new block should have when created at time given the
+// parent block's time and difficulty. The calculation uses the Cyber rules.
+func calcDifficultyCyber(time uint64, parent *types.Header) *big.Int {
+	// https://github.com/ethereum/EIPs/issues/100.
+	// algorithm:
+	// diff = (parent_diff +
+	//         (parent_diff / 2048 * max((2 if len(parent.uncles) else 1) - ((timestamp - parent.timestamp) // 9), -99))
+	//        ) + 2^(periodCount - 2)
+
+	bigTime := new(big.Int).SetUint64(time)
+	bigParentTime := new(big.Int).SetUint64(parent.Time)
+
+	// holds intermediate values to make the algo easier to read & audit
+	x := new(big.Int)
+	y := new(big.Int)
+
+	// (2 if len(parent_uncles) else 1) - (block_timestamp - parent_timestamp) // 9
+	x.Sub(bigTime, bigParentTime)
+	x.Div(x, big9)
+	if parent.UncleHash == types.EmptyUncleHash {
+		x.Sub(big1, x)
+	} else {
+		x.Sub(big2, x)
+	}
+	// max((2 if len(parent_uncles) else 1) - (block_timestamp - parent_timestamp) // 9, -99)
+	if x.Cmp(bigMinus99) < 0 {
+		x.Set(bigMinus99)
+	}
+	// parent_diff + (parent_diff / 2048 * max((2 if len(parent.uncles) else 1) - ((timestamp - parent.timestamp) // 9), -99))
+	y.Div(parent.Difficulty, params.DifficultyBoundDivisor)
+	x.Mul(y, x)
+	x.Add(parent.Difficulty, x)
+
+	// minimum difficulty can ever be (before exponential factor)
+	if x.Cmp(params.MinimumDifficulty) < 0 {
+		x.Set(params.MinimumDifficulty)
+	}
+	return x
 }
 
 // calcDifficultyHomestead is the difficulty adjustment algorithm. It returns
@@ -550,7 +593,7 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 
 	var result []byte
 	// TODO chain is nil when submitWork
-	if chain == nil || chain.Config().IsCyber(header.Time) {
+	if chain == nil || chain.Config().IsCyber(header.Number) {
 		hashSource := make([]byte, 0, common.HashLength*2+8)
 		hashSource = append(hashSource, ethash.SealHash(header).Bytes()...)
 		hashSource = append(hashSource, seedHash(number)...)

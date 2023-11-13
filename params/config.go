@@ -244,7 +244,7 @@ var (
 		ShanghaiTime:                  nil,
 		CancunTime:                    nil,
 		PragueTime:                    nil,
-		CyberTime:                     newUint64(0),
+		CyberBlock:                    big.NewInt(0),
 		TerminalTotalDifficulty:       nil,
 		TerminalTotalDifficultyPassed: false,
 		Ethash:                        new(EthashConfig),
@@ -461,7 +461,7 @@ type ChainConfig struct {
 	CancunTime   *uint64 `json:"cancunTime,omitempty"`   // Cancun switch time (nil = no fork, 0 = already on cancun)
 	PragueTime   *uint64 `json:"pragueTime,omitempty"`   // Prague switch time (nil = no fork, 0 = already on prague)
 
-	CyberTime *uint64 `json:"cyberTime,omitempty"` // Cyber switch time (nil = no fork, 0 = already on cyber)
+	CyberBlock *big.Int `json:"CyberBlock,omitempty"` // Cyber switch time (nil = no fork, 0 = already on cyber)
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
@@ -681,8 +681,8 @@ func (c *ChainConfig) IsPrague(time uint64) bool {
 }
 
 // IsCyber returns whether num is either equal to the Cyber fork time or greater.
-func (c *ChainConfig) IsCyber(time uint64) bool {
-	return isTimestampForked(c.CyberTime, time)
+func (c *ChainConfig) IsCyber(num *big.Int) bool {
+	return isBlockForked(c.CyberBlock, num)
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
