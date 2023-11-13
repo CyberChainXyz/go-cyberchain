@@ -1549,8 +1549,8 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "goerli")
 	case ctx.Bool(SepoliaFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "sepolia")
-	// case ctx.Bool(CyberFlag.Name) && cfg.DataDir == node.DefaultDataDir():
-	//	cfg.DataDir = filepath.Join(node.DefaultDataDir(), "cyber")
+		// case ctx.Bool(CyberFlag.Name) && cfg.DataDir == node.DefaultDataDir():
+		//	cfg.DataDir = filepath.Join(node.DefaultDataDir(), "cyber")
 	}
 }
 
