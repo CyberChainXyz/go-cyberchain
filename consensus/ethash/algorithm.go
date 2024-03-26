@@ -33,7 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/nexis-dev/cn-gpu-go"
+	"github.com/CyberChainXyz/fphash-go"
 )
 
 const (
@@ -406,9 +406,9 @@ func hashimotoFull(dataset []uint32, hash []byte, nonce uint64) ([]byte, []byte)
 	return hashimoto(hash, nonce, uint64(len(dataset))*4, lookup)
 }
 
-// cn-gpu hash algorithm
-func cngpuHash(input []byte) []byte {
-	arr_result := cngpugo.Hash(input)
+// fphash algorithm
+func fpHash(input []byte) []byte {
+	arr_result := fphash.Hash(input)
 	return arr_result[:]
 }
 

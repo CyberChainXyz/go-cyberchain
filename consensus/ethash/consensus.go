@@ -600,7 +600,7 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 		hashSource = append(hashSource, ethash.SealHash(header).Bytes()...)
 		hashSource = append(hashSource, seedHash(number)...)
 		hashSource = append(hashSource, header.Nonce[:]...)
-		arr_result := cngpuHash(hashSource)
+		arr_result := fpHash(hashSource)
 		result = arr_result[:]
 	} else {
 		var digest []byte

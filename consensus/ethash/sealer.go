@@ -99,7 +99,7 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 		go func(id int, nonce uint64) {
 			defer pend.Done()
 			if isCyber {
-				ethash.mine_cn_gpu(block, id, nonce, abort, locals)
+				ethash.mine_fphash(block, id, nonce, abort, locals)
 			} else {
 				ethash.mine(block, id, nonce, abort, locals)
 			}
@@ -133,8 +133,8 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 	return nil
 }
 
-// cn-gpu mine
-func (ethash *Ethash) mine_cn_gpu(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
+// fphash mine
+func (ethash *Ethash) mine_fphash(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
 	// Extract some data from the header
 	var (
 		header = block.Header()
@@ -153,13 +153,13 @@ func (ethash *Ethash) mine_cn_gpu(block *types.Block, id int, seed uint64, abort
 	hashSource = append(hashSource, seedHash(number)...)
 
 	logger := ethash.config.Log.New("miner", id)
-	logger.Trace("Started ethash/cn-gpu search for new nonces", "seed", seed)
+	logger.Trace("Started ethash/fphash search for new nonces", "seed", seed)
 search:
 	for {
 		select {
 		case <-abort:
 			// Mining terminated, update stats and abort
-			logger.Trace("Ethash/cn-gpu nonce search aborted", "attempts", nonce-seed)
+			logger.Trace("Ethash/fphash nonce search aborted", "attempts", nonce-seed)
 			ethash.hashrate.Mark(attempts)
 			break search
 
@@ -173,7 +173,7 @@ search:
 			nonceBytes := types.EncodeNonce(nonce)
 			// Compute the PoW value of this nonce
 			tryHashSource := append(hashSource, nonceBytes[:]...)
-			result := cngpuHash(tryHashSource)
+			result := fpHash(tryHashSource)
 
 			if powBuffer.SetBytes(result[:]).Cmp(target) <= 0 {
 				// Correct nonce found, create a new header with it
@@ -183,9 +183,9 @@ search:
 				// Seal and return a block (if still needed)
 				select {
 				case found <- block.WithSeal(header):
-					logger.Trace("Ethash/cn-gpu nonce found and reported", "attempts", nonce-seed, "nonce", nonce)
+					logger.Trace("Ethash/fphash nonce found and reported", "attempts", nonce-seed, "nonce", nonce)
 				case <-abort:
-					logger.Trace("Ethash/cn-gpu nonce found but discarded", "attempts", nonce-seed, "nonce", nonce)
+					logger.Trace("Ethash/fphash nonce found but discarded", "attempts", nonce-seed, "nonce", nonce)
 				}
 				break search
 			}
