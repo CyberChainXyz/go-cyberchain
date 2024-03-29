@@ -72,11 +72,11 @@ var CyberBootnodes = []string{
 	"enode://02e92d3abd808dd019e1c7cc258dd8b05a51a53a9b38031de5ec5a7189b7e24ac7f3ce6d14a7f7b9a44ff8883d45dc43b08573a4faedb631df07b2a6512d2647@node-4.cyberchain.one:30303",
 	"enode://646bf1b29d9ba3fd919d9dc87a75b2d5272899a8e555468bee0834e0391472cf73e505cb051304cb22c6f0f9ec21d9579d5c5eaebc7e5f7ecdb1c792184118a7@node-5.cyberchain.one:30303",
 
-	"enode://9250f94f34781f2c3624d962a82304efcd8b7862b5092e71ce27103f2c249199da42193b05b5004bbcaf56f2ae8141024f3d909d1c602a21ca867174bdfa8c34@node-1.nexis.social:30303",
-	"enode://c8ef7650fa4c5f64b64a289c61067918c2c32fc0a13928b8a887107cf403c88cd3d88786c675912224601690164c6a40587925b8aada733e167db2f0351d1c71@node-2.nexis.social:30303",
-	"enode://3e1356fa160b48cc0439133717a00958a5c3d0dbc42a810bacd8677f765f7c58dd43488e95e74119503063701e7128a3b7c25f59649816bf07e1474c5a07870c@node-3.nexis.social:30303",
-	"enode://55c2c8e7987827d45de55895fa56e17db31604d1567a0ba29b22443a0625214e02f11d23ee758fef23aac9311009e13ad94231b4ddddfcf620b61939d6abf308@node-4.nexis.social:30303",
-	"enode://bf06759bc76f3699c6cfff40c617f6fa68b0fe47b1f14515b4e7e028a85b6e3a1cb09d6bf497df7e47c6efdc1b6d5b95ef5e00db7d1fcd378ccaa9d79c151ce7@node-5.nexis.social:30303",
+	"enode://9250f94f34781f2c3624d962a82304efcd8b7862b5092e71ce27103f2c249199da42193b05b5004bbcaf56f2ae8141024f3d909d1c602a21ca867174bdfa8c34@node-1.cyberchain.xyz:30303",
+	"enode://c8ef7650fa4c5f64b64a289c61067918c2c32fc0a13928b8a887107cf403c88cd3d88786c675912224601690164c6a40587925b8aada733e167db2f0351d1c71@node-2.cyberchain.xyz:30303",
+	"enode://3e1356fa160b48cc0439133717a00958a5c3d0dbc42a810bacd8677f765f7c58dd43488e95e74119503063701e7128a3b7c25f59649816bf07e1474c5a07870c@node-3.cyberchain.xyz:30303",
+	"enode://55c2c8e7987827d45de55895fa56e17db31604d1567a0ba29b22443a0625214e02f11d23ee758fef23aac9311009e13ad94231b4ddddfcf620b61939d6abf308@node-4.cyberchain.xyz:30303",
+	"enode://bf06759bc76f3699c6cfff40c617f6fa68b0fe47b1f14515b4e7e028a85b6e3a1cb09d6bf497df7e47c6efdc1b6d5b95ef5e00db7d1fcd378ccaa9d79c151ce7@node-5.cyberchain.xyz:30303",
 }
 
 var V5Bootnodes = []string{
@@ -113,8 +113,8 @@ func KnownDNSNetwork(genesis common.Hash, protocol string) string {
 		net = "goerli"
 	case SepoliaGenesisHash:
 		net = "sepolia"
-	// case CyberGenesisHash:
-	//	net = "cyber"
+	case CyberGenesisHash:
+		return "enrtree://AK2VZEXXXVIMAOABYZFWKYTFC3X6NODTCPETYGJPG3B6OKRMZRN7Q@" + protocol + ".disco.cyberchain.xyz"
 	default:
 		return ""
 	}
