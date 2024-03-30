@@ -9,7 +9,7 @@ GO ?= latest
 GORUN = env GO111MODULE=on go run
 
 ccx:
-	$(GORUN) build/ci.go install ./cmd/geth
+	$(GORUN) build/ci.go install -static ./cmd/geth
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/ccx\" to launch ccx."
 
