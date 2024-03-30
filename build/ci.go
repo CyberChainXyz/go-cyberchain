@@ -272,6 +272,12 @@ func buildFlags(env build.Environment, staticLinking bool, buildTags []string) (
 		}
 		ld = append(ld, "-extldflags", "'"+strings.Join(extld, " ")+"'")
 	}
+	if runtime.GOOS == "windows" {
+		if staticLinking {
+			extld := []string{"-static"}
+			ld = append(ld, "-extldflags", "'"+strings.Join(extld, " ")+"'")
+		}
+	}
 	if len(ld) > 0 {
 		flags = append(flags, "-ldflags", strings.Join(ld, " "))
 	}
