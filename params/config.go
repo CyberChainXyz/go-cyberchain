@@ -224,7 +224,7 @@ var (
 
 	// CyberChainConfig contains the chain parameters to run a node on the Cyber network.
 	CyberChainConfig = &ChainConfig{
-		ChainID:                       big.NewInt(9),
+		ChainID:                       big.NewInt(65535),
 		HomesteadBlock:                big.NewInt(0),
 		DAOForkBlock:                  nil,
 		DAOForkSupport:                false,

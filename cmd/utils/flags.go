@@ -1909,7 +1909,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		SetDNSDiscoveryDefaults(cfg, params.GoerliGenesisHash)
 	case ctx.Bool(CyberFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
-			cfg.NetworkId = 9
+			cfg.NetworkId = 65535
 		}
 		cfg.Genesis = core.DefaultCyberGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.CyberGenesisHash)
