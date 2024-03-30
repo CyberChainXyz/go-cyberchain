@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build_release:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+
+      - name: Build
+        run: make ccx
+
+      - name: Prepare files (Linux/Macos)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir "ccx-${{ github.ref_name}}" && cd "ccx-${{ github.ref_name }}"
+          mv ../build/bin/ccx ./
+          echo -e '#!/bin/sh\n./ccx -ws -mine -miner.etherbase=0x123...fff' > run_for_mining.sh
+          chmod +x run_for_mining.sh
+
+      - name: Prepare files (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir ccx-${{ github.ref_name}} && cd ccx-${{ github.ref_name}}
+          mv ../build/bin/ccx.exe ./
+          echo 'ccx.exe -ws -mine -miner.etherbase=0x123...fff' > run_for_mining.bat
+          echo 'pause' >> run_for_mining.bat
+          chmod +x run_for_mining.bat
+
+      - name: Archive Release (Windows)
+        if: runner.os == 'Windows'
+        uses: thedoctor0/zip-release@0.7.6
+        with:
+          type: zip
+          filename: ccx-${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name }}.zip
+          path: 'ccx-${{ github.ref_name}}'
+
+      - name: Archive Release (Linux/Macos)
+        if: runner.os != 'Windows'
+        uses: thedoctor0/zip-release@0.7.6
+        with:
+          type: tar
+          filename: ccx-${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name }}.tar.gz
+          path: 'ccx-${{ github.ref_name}}'
+
+      - name: Release (Windows)
+        if: runner.os == 'Windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ccx-${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name }}.zip
+
+      - name: Release (Linux/Macos)
+        if: runner.os != 'Windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ccx-${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name }}.tar.gz
+
