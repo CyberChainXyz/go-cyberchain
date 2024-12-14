@@ -566,7 +566,7 @@ func DefaultCyberGenesisBlock() *Genesis {
 		Nonce:      42,
 		Timestamp:  1701579055,
 		ExtraData:  []byte("CyberChain,Decentralization,POW"),
-		GasLimit:   120000000,
+		GasLimit:   210000000,
 		Difficulty: big.NewInt(420000),
 		Alloc:      decodePrealloc(cyberAllocData),
 	}
