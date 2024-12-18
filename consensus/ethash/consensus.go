@@ -657,13 +657,25 @@ func (ethash *Ethash) Prepare(chain consensus.ChainHeaderReader, header *types.H
 	// Check genesis block pow
 	/*
 		generisHead := chain.GetHeaderByNumber(0)
+		err := ethash.verifySeal(chain, generisHead, false)
+		if err != nil {
+			fmt.Println("ERROR:", err)
+		}
+	*/
+
+	// generisHead := chain.GetHeaderByNumber(0)
+	/*
 		fmt.Printf("============== %#v\n", generisHead)
+		i := 0
+		extra := []byte("-*-Future of Web3 Infrastructure-*-")
 		for {
+			generisHead.Extra = append(extra, []byte(fmt.Sprintf("%x", i))...)
 			err := ethash.verifySeal(chain, generisHead, false)
 			if err != nil {
-				generisHead.Time += 1
+				i++
 			} else {
-				fmt.Println("GOOD TIME:", generisHead.Time)
+				fmt.Println("GOOD TIME:", generisHead.Time, i, fmt.Sprintf("%x", i))
+				fmt.Println(string(generisHead.Extra))
 				break
 			}
 		}
