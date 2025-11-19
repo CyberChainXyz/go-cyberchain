@@ -188,35 +188,43 @@ func BenchmarkDifficultyCalculator(b *testing.B) {
 }
 
 func TestBlockReward(t *testing.T) {
+	config := params.CyberChainConfig
+	var riseBlock int64 = config.RiseBlock.Int64()
 	tests := []struct {
 		number *big.Int
 		reward *big.Int
 	}{
 		{big.NewInt(1), CyberBlockReward},
-		{big.NewInt(8640*365*4 - 100), CyberBlockReward},
-		{big.NewInt(8640*365*4 - 1), CyberBlockReward},
+		{big.NewInt(1000), CyberBlockReward},
+		{big.NewInt(riseBlock - 1), CyberBlockReward},
+		{big.NewInt(riseBlock), RiseBlockReward},
+		{big.NewInt(riseBlock + 1), RiseBlockReward},
+		{big.NewInt(riseBlock + 1000), RiseBlockReward},
 
-		{big.NewInt(8640 * 365 * 4), new(big.Int).Mul(big.NewInt(832/2), big.NewInt(1e+18))},
-		{big.NewInt(8640*365*4 + 100), new(big.Int).Mul(big.NewInt(832/2), big.NewInt(1e+18))},
-		{big.NewInt(8640*365*4*2 - 1), new(big.Int).Mul(big.NewInt(832/2), big.NewInt(1e+18))},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 -1), RiseBlockReward},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5), new(big.Int).Div(RiseBlockReward, big.NewInt(2))},
 
-		{big.NewInt(8640 * 365 * 4 * 2), new(big.Int).Mul(big.NewInt(832/2/2), big.NewInt(1e+18))},
-		{big.NewInt(8640*365*4*3 - 1), new(big.Int).Mul(big.NewInt(832/2/2), big.NewInt(1e+18))},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 2 -1), new(big.Int).Div(RiseBlockReward, big.NewInt(2))},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 2), new(big.Int).Div(RiseBlockReward, big.NewInt(4))},
 
-		{big.NewInt(8640 * 365 * 4 * 25),
-			new(big.Int).Div(
-				new(big.Int).Mul(big.NewInt(832), big.NewInt(1e+18)),
-				big.NewInt(33554432), // 2**25
-			),
-		},
-		{big.NewInt(8640 * 365 * 4 * 69), big.NewInt(1)},
-		{big.NewInt(8640*365*4*70 - 1), big.NewInt(1)},
-		{big.NewInt(8640 * 365 * 4 * 70), big.NewInt(0)},
-		{big.NewInt(8640 * 365 * 4 * 71), big.NewInt(0)},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 20 -1), big.NewInt(76293945312500)},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 20), big.NewInt(38146972656250)},
+
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 40 -1), big.NewInt(72759576)},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 40), big.NewInt(36379788)},
+
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 60 -1), big.NewInt(69)},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 60), big.NewInt(34)},
+
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 65 -1), big.NewInt(2)},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 65), big.NewInt(1)},
+
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 66 -1), big.NewInt(1)},
+		{big.NewInt(riseBlock + 86400 * 365 *4 / 5 * 66), big.NewInt(0)},
+
 	}
-
 	for _, v := range tests {
-		reward := calcBlockReward(nil, v.number)
+		reward := calcBlockReward(config, v.number)
 		if reward.Cmp(v.reward) != 0 {
 			t.Error("calcBlockReward failed. Expected", v.reward, "and calculated", reward)
 		}
