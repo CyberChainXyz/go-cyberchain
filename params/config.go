@@ -464,7 +464,7 @@ type ChainConfig struct {
 
 	CyberBlock *big.Int `json:"CyberBlock,omitempty"` // Cyber switch time (nil = no fork, 0 = already on cyber)
 
-	RiseBlock *big.Int `json:"CyberBlock,omitempty"` // RISE fork switch time (nil = no fork, 0 = already on Rise)
+	RiseBlock *big.Int `json:"RiseBlock,omitempty"` // RISE fork switch time (nil = no fork, 0 = already on Rise)
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
