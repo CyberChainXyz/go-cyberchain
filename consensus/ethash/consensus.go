@@ -44,6 +44,8 @@ var (
 	ConstantinopleBlockReward     = big.NewInt(2e+18)                                    // Block reward in wei for successfully mining a block upward from Constantinople
 	CyberBlockReward              = new(big.Int).Mul(big.NewInt(832), big.NewInt(1e+18)) // Block reward in wei from Cyber
 	CyberBlockRewardHalvedBlocks  = big.NewInt(8640 * 365 * 4)                           // Block reward from Cyber halved blocks (about 4 years)
+	RiseBlockReward              = new(big.Int).Mul(big.NewInt(40), big.NewInt(1e+18)) // Block reward in wei from RISE
+	RiseBlockRewardHalvedBlocks  = big.NewInt(86400 * 365 * 4 / 5)                           // Block reward from Rise halved blocks (about 4 years)
 	maxUncles                     = 2                                                    // Maximum number of uncles allowed in a single block
 	allowedFutureBlockTimeSeconds = int64(15)                                            // Max seconds from current time allowed for blocks, before they're considered future blocks
 
@@ -348,6 +350,8 @@ func (ethash *Ethash) CalcDifficulty(chain consensus.ChainHeaderReader, time uin
 func CalcDifficulty(config *params.ChainConfig, time uint64, parent *types.Header) *big.Int {
 	next := new(big.Int).Add(parent.Number, big1)
 	switch {
+	case config.IsRise(next):
+		return calcDifficultyRise(time, parent)
 	case config.IsCyber(next):
 		return calcDifficultyCyber(time, parent)
 	case config.IsGrayGlacier(next):
@@ -374,6 +378,7 @@ var (
 	expDiffPeriod = big.NewInt(100000)
 	big1          = big.NewInt(1)
 	big2          = big.NewInt(2)
+	big4          = big.NewInt(4)
 	big9          = big.NewInt(9)
 	big10         = big.NewInt(10)
 	bigMinus99    = big.NewInt(-99)
@@ -482,6 +487,48 @@ func calcDifficultyCyber(time uint64, parent *types.Header) *big.Int {
 	}
 	return x
 }
+
+// calcDifficultyRise is the difficulty adjustment algorithm. It returns
+// the difficulty that a new block should have when created at time given the
+// parent block's time and difficulty. The calculation uses the Rise rules.
+func calcDifficultyRise(time uint64, parent *types.Header) *big.Int {
+	// https://github.com/ethereum/EIPs/issues/100.
+	// algorithm:
+	// diff = (parent_diff +
+	//         (parent_diff / 2048 * max((2 if len(parent.uncles) else 1) - ((timestamp - parent.timestamp) // 4), -99))
+	//        ) + 2^(periodCount - 2)
+
+	bigTime := new(big.Int).SetUint64(time)
+	bigParentTime := new(big.Int).SetUint64(parent.Time)
+
+	// holds intermediate values to make the algo easier to read & audit
+	x := new(big.Int)
+	y := new(big.Int)
+
+	// (2 if len(parent_uncles) else 1) - (block_timestamp - parent_timestamp) // 4
+	x.Sub(bigTime, bigParentTime)
+	x.Div(x, big4)
+	if parent.UncleHash == types.EmptyUncleHash {
+		x.Sub(big1, x)
+	} else {
+		x.Sub(big2, x)
+	}
+	// max((2 if len(parent_uncles) else 1) - (block_timestamp - parent_timestamp) // 4, -99)
+	if x.Cmp(bigMinus99) < 0 {
+		x.Set(bigMinus99)
+	}
+	// parent_diff + (parent_diff / 2048 * max((2 if len(parent.uncles) else 1) - ((timestamp - parent.timestamp) // 4), -99))
+	y.Div(parent.Difficulty, params.DifficultyBoundDivisor)
+	x.Mul(y, x)
+	x.Add(parent.Difficulty, x)
+
+	// minimum difficulty can ever be (before exponential factor)
+	if x.Cmp(params.MinimumDifficulty) < 0 {
+		x.Set(params.MinimumDifficulty)
+	}
+	return x
+}
+
 
 // calcDifficultyHomestead is the difficulty adjustment algorithm. It returns
 // the difficulty that a new block should have when created at time given the
@@ -745,7 +792,13 @@ var (
 // Select the correct block reward based on chain progression
 func calcBlockReward(config *params.ChainConfig, number *big.Int) *big.Int {
 	blockReward := FrontierBlockReward
-	if config == nil || config.IsCyber(number) {
+
+	if config.IsRise(number) {
+		blockReward = new(big.Int).Rsh(
+			RiseBlockReward,
+			uint(new(big.Int).Div( new(big.Int).Sub(number, config.RiseBlock), RiseBlockRewardHalvedBlocks).Uint64()),
+		)
+	} else if config.IsCyber(number) {
 		blockReward = new(big.Int).Rsh(
 			CyberBlockReward,
 			uint(new(big.Int).Div(number, CyberBlockRewardHalvedBlocks).Uint64()),
